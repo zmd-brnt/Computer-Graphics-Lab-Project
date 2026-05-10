@@ -47,6 +47,9 @@ struct SpotLight {
     vec3 specular;       
 };
 
+
+
+
 // Uniforms (Configurados en ProjectMain.cpp)
 uniform vec3 viewPos;
 uniform DirLight dirLight;
@@ -77,7 +80,17 @@ void main()
     // 3. Luz Reflectora (Spotlight / Linterna)
     result += CalcSpotLight(spotLight, norm, FragPos, viewDir);    
     
-    FragColor = vec4(result, 1.0);
+    // Extraemos el valor Alpha (a) de tu textura difusa
+    float alpha = texture(material.diffuse, TexCoords).a;
+
+    //  Si el píxel es casi 100% invisible, lo descartamos. 
+    // Esto evita errores gráficos en los bordes.
+    if(alpha < 0.1) {
+        discard;
+    }
+    FragColor = vec4(result, alpha);
+
+
 }
 
 // Función para calcular la Luz Direccional
@@ -151,4 +164,6 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     specular *= attenuation * intensity;
     
     return (ambient + diffuse + specular);
+
+
 }

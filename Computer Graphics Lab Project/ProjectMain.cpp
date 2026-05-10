@@ -146,7 +146,8 @@ int main()
 	// ==========================================
 	// 1. CARGA DE MODELOS
 	// ==========================================
-	Model PasilloFI((char*)"Model/PasilloFI.fbx");
+	Model PasilloFI((char*)"Model/PasilloIngenieria.obj");
+	Model Vidrios((char*)"Model/Vidrios.obj");
 	Model MunecoMadera((char*)"Model/MunecoMadera.fbx");
 
 	// 2. ANIMACIÓN (Solo para el Muñeco)
@@ -238,6 +239,31 @@ int main()
 		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelPasillo));
 
 		PasilloFI.Draw(lightingShader);
+
+
+		// =====================================================
+		// DIBUJAR MODELO: VIDRIOS (Escenario Transparente)
+		// =====================================================
+		// NOTA: Asegúrate de que este bloque esté AL FINAL de todos tus otros .Draw()
+
+		// 1. Activar la mezcla de colores (Blending)
+		glEnable(GL_BLEND);
+		// 2. Decirle a OpenGL CÓMO mezclar los colores (Fondo + Transparencia del vidrio)
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		// 3. Desactivar la escritura de profundidad (para no tapar cosas detrás de otros vidrios)
+		glDepthMask(GL_FALSE);
+
+		glm::mat4 modelVidrios = glm::mat4(1.0f);
+		modelVidrios = glm::translate(modelVidrios, glm::vec3(0.0f, 0.0f, 0.0f));
+		//modelVidrios = glm::scale(modelVidrios, glm::vec3(0.005f, 0.005f, 0.005f));
+		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelVidrios));
+
+		// Dibujar el modelo
+		Vidrios.Draw(lightingShader);
+
+		// 4. Restaurar la configuración normal para el siguiente frame
+		glDepthMask(GL_TRUE);
+		glDisable(GL_BLEND);
 
 
 		// =====================================================
