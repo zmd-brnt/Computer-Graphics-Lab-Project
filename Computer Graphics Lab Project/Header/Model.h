@@ -16,11 +16,12 @@
 #include <assimp/postprocess.h>
 
 #include "Mesh.h"
-#include  "Shader.h"
+#include "Shader.h"
 
 using namespace std;
 
-GLint TextureFromFile(const char *path, string directory);
+GLint TextureFromFile(const char* path, string directory);
+GLint TextureFromEmbedded(const aiTexture* aiTex);
 
 struct BoneInfo
 {
@@ -31,14 +32,11 @@ struct BoneInfo
 class Model
 {
 public:
-	/*  Functions   */
-	// Constructor, expects a filepath to a 3D model.
-	Model(GLchar *path)
+	Model(GLchar* path)
 	{
 		this->loadModel(path);
 	}
 
-	// Draws the model, and thus all its meshes
 	void Draw(Shader shader)
 	{
 		for (GLuint i = 0; i < this->meshes.size(); i++)
@@ -49,56 +47,44 @@ public:
 	std::map<string, BoneInfo> m_BoneInfoMap;
 	int m_BoneCounter = 0;
 
-	auto& GetBoneInfoMap() {
-		return m_BoneInfoMap;
-	}
+	auto& GetBoneInfoMap() { return m_BoneInfoMap; }
 	int& GetBoneCount() { return m_BoneCounter; }
+
 private:
-	/*  Model Data  */
 	vector<Mesh> meshes;
 	string directory;
-	vector<Texture> textures_loaded;	// Stores all the textures loaded so far, optimization to make sure textures aren't loaded more than once.
+	vector<Texture> textures_loaded;
 
-										/*  Functions   */
-										// Loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
 	void loadModel(string path)
 	{
-		// Read file via ASSIMP
 		Assimp::Importer importer;
-		const aiScene *scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+		const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
 
-		// Check for errors
-		if (!scene || scene->mFlags == AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) // if is Not Zero
+		if (!scene || scene->mFlags == AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
 		{
 			cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << endl;
 			return;
 		}
-		// Retrieve the directory path of the filepath
-		this->directory = path.substr(0, path.find_last_of('/'));
+		size_t slashIndex = path.find_last_of("/\\");
+		this->directory = path.substr(0, slashIndex);
 
-		// Process ASSIMP's root node recursively
 		this->processNode(scene->mRootNode, scene);
 	}
 
-	// Processes a node in a recursive fashion. Processes each individual mesh located at the node and repeats this process on its children nodes (if any).
 	void processNode(aiNode* node, const aiScene* scene)
 	{
-		// Process each mesh located at the current node
 		for (GLuint i = 0; i < node->mNumMeshes; i++)
 		{
-			// The node object only contains indices to index the actual objects in the scene.
-			// The scene contains all the data, node is just to keep stuff organized (like relations between nodes).
 			aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-
 			this->meshes.push_back(this->processMesh(mesh, scene));
 		}
 
-		// After we've processed all of the meshes (if any) we then recursively process each of the children nodes
 		for (GLuint i = 0; i < node->mNumChildren; i++)
 		{
 			this->processNode(node->mChildren[i], scene);
 		}
 	}
+
 	Mesh processMesh(aiMesh* mesh, const aiScene* scene)
 	{
 		vector<Vertex> vertices;
@@ -108,8 +94,6 @@ private:
 		for (GLuint i = 0; i < mesh->mNumVertices; i++)
 		{
 			Vertex vertex;
-
-			// 1. Inicializamos los datos de los huesos en -1 y 0.0f
 			SetVertexBoneDataToDefault(vertex);
 
 			glm::vec3 vector;
@@ -146,53 +130,53 @@ private:
 		if (mesh->mMaterialIndex >= 0)
 		{
 			aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-			vector<Texture> diffuseMaps = this->loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
+			vector<Texture> diffuseMaps = this->loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse", scene);
 			textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-			vector<Texture> specularMaps = this->loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
+			vector<Texture> specularMaps = this->loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular", scene);
 			textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 		}
 
-		// 2. ¡LA MAGIA DE LOS HUESOS! 
-		// Extraemos los pesos después de poblar los vértices
 		ExtractBoneWeightForVertices(vertices, mesh, scene);
-
 		return Mesh(vertices, indices, textures);
 	}
 
-	// Checks all material textures of a given type and loads the textures if they're not loaded yet.
-	// The required info is returned as a Texture struct.
-	vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName)
+	vector<Texture> loadMaterialTextures(aiMaterial* mat, aiTextureType type, string typeName, const aiScene* scene)
 	{
 		vector<Texture> textures;
-
 		for (GLuint i = 0; i < mat->GetTextureCount(type); i++)
 		{
 			aiString str;
 			mat->GetTexture(type, i, &str);
+			string textureName = str.C_Str();
 
-			// Check if texture was loaded before and if so, continue to next iteration: skip loading a new texture
 			GLboolean skip = false;
-
 			for (GLuint j = 0; j < textures_loaded.size(); j++)
 			{
 				if (textures_loaded[j].path == str)
 				{
 					textures.push_back(textures_loaded[j]);
-					skip = true; // A texture with the same filepath has already been loaded, continue to next one. (optimization)
-
+					skip = true;
 					break;
 				}
 			}
 
 			if (!skip)
-			{   // If texture hasn't been loaded already, load it
+			{
 				Texture texture;
-				texture.id = TextureFromFile(str.C_Str(), this->directory);
+				if (!textureName.empty() && textureName[0] == '*')
+				{
+					int textureIndex = std::stoi(textureName.substr(1));
+					texture.id = TextureFromEmbedded(scene->mTextures[textureIndex]);
+				}
+				else
+				{
+					texture.id = TextureFromFile(str.C_Str(), this->directory);
+				}
+
 				texture.type = typeName;
 				texture.path = str;
 				textures.push_back(texture);
-
-				this->textures_loaded.push_back(texture);  // Store it as texture loaded for entire model, to ensure we won't unnecesery load duplicate textures.
+				this->textures_loaded.push_back(texture);
 			}
 		}
 		return textures;
@@ -264,30 +248,45 @@ private:
 	}
 };
 
-GLint TextureFromFile(const char *path, string directory)
+GLint TextureFromFile(const char* path, string directory)
 {
-	//Generate texture ID and load texture data
-	string filename = string(path);
-	filename = directory + '/' + filename;
+	string filename = directory + '/' + string(path);
 	GLuint textureID;
 	glGenTextures(1, &textureID);
 
-	int width, height;
+	int width, height, channels;
+	unsigned char* image = SOIL_load_image(filename.c_str(), &width, &height, &channels, SOIL_LOAD_AUTO);
 
-	unsigned char *image = SOIL_load_image(filename.c_str(), &width, &height, 0, SOIL_LOAD_RGB);
+	if (image)
+	{
+		GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, image);
+		glGenerateMipmap(GL_TEXTURE_2D);
+		SOIL_free_image_data(image);
+	}
+	return textureID;
+}
 
-	// Assign texture to ID
-	glBindTexture(GL_TEXTURE_2D, textureID);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-	glGenerateMipmap(GL_TEXTURE_2D);
+GLint TextureFromEmbedded(const aiTexture* aiTex)
+{
+	GLuint textureID;
+	glGenTextures(1, &textureID);
+	int width, height, channels;
+	unsigned char* image = nullptr;
 
-	// Parameters
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	SOIL_free_image_data(image);
+	if (aiTex->mHeight == 0)
+		image = SOIL_load_image_from_memory(reinterpret_cast<const unsigned char*>(aiTex->pcData), aiTex->mWidth, &width, &height, &channels, SOIL_LOAD_AUTO);
+	else
+		image = SOIL_load_image_from_memory(reinterpret_cast<const unsigned char*>(aiTex->pcData), aiTex->mWidth * aiTex->mHeight * 4, &width, &height, &channels, SOIL_LOAD_AUTO);
 
+	if (image)
+	{
+		GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, image);
+		glGenerateMipmap(GL_TEXTURE_2D);
+		SOIL_free_image_data(image);
+	}
 	return textureID;
 }
