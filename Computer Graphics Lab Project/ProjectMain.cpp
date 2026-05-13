@@ -28,7 +28,7 @@
 #include "Header/Shader.h"
 #include "Header/Camera.h"
 #include "Header/Model.h"
-
+#include "Header/InputManager.h"
 
 // Function prototypes
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
@@ -39,8 +39,13 @@ void DoMovement();
 const GLuint WIDTH = 1000, HEIGHT = 800;
 int SCREEN_WIDTH, SCREEN_HEIGHT;
 
-// Camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+// ==========================================
+// CÁMARA E INPUT MANAGER
+// ==========================================
+// La altura inicial aquí (2.0f) es solo donde aparece la cámara al abrir la ventana.
+Camera camera(glm::vec3(0.0f, 2.0f, 5.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 15.0f, 0.5f);
+InputManager inputManager;
+
 GLfloat lastX = WIDTH / 2.0;
 GLfloat lastY = HEIGHT / 2.0;
 bool keys[1024];
@@ -50,62 +55,12 @@ bool playFBX = true;
 
 // Positions of the point lights
 glm::vec3 pointLightPositions[] = {
-	glm::vec3(0.0f,2.0f, 0.0f)
-};
-
-// Vértices para el cubo de la lámpara
-float vertices[] = {
-	 -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-		0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-		0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-		0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-	   -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-	   -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-
-	   -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-		0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-		0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-		0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-	   -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-	   -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-
-	   -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-	   -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-	   -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-	   -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-	   -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-	   -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-
-		0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-		0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-		0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-		0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-		0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-		0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-
-	   -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-		0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-		0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-		0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-	   -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-	   -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-
-	   -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-		0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-		0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-		0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-	   -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-	   -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
+	glm::vec3(0.0f, 2.0f, 0.0f)
 };
 
 // Transformaciones Generales del Modelo
 float rotModel = 0.0f;
 float modelPosX = 0.0f, modelPosY = 0.0f, modelPosZ = 0.0f;
-
-// Variables de Keyframes (Simplificado a Posición y Rotación)
-#define MAX_FRAMES 48
-int i_max_steps = 190;
-int i_curr_steps = 0;
 
 // Deltatime
 GLfloat deltaTime = 0.0f;
@@ -150,24 +105,21 @@ int main()
 	Model Vidrios((char*)"Model/Vidrios.obj");
 	Model MunecoMadera((char*)"Model/MunecoMadera.fbx");
 
-	// 2. ANIMACIÓN (Solo para el Muñeco)
 	Animation animacionMuneco("Model/MunecoMadera.fbx", &MunecoMadera);
 	Animator animatorMuneco(&animacionMuneco);
+
 	// ==========================================
+	// 2. CONFIGURACIÓN INICIAL DE LA CÁMARA
+	// ==========================================
+	camera.setCameraMode(CameraMode::THIRD_PERSON);
 
-	// Buffers para el cubo de luz (Lámpara)
-	GLuint VBO, VAO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glBindVertexArray(VAO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
+	// Puntos de interés del pasillo
+	camera.addInterestPoint(glm::vec3(0.0f, 2.0f, 5.0f), glm::vec3(0.0f, 1.5f, -2.0f));
+	camera.addInterestPoint(glm::vec3(1.5f, 1.2f, 2.0f), glm::vec3(1.0f, 0.5f, 0.0f));
+	camera.addInterestPoint(glm::vec3(-1.0f, 1.5f, -1.0f), glm::vec3(-3.0f, 1.0f, -2.0f));
+	camera.addInterestPoint(glm::vec3(0.0f, 1.8f, -6.0f), glm::vec3(0.0f, 1.5f, 0.0f));
 
-	glm::mat4 projection = glm::perspective(camera.GetZoom(), (GLfloat)SCREEN_WIDTH / (GLfloat)SCREEN_HEIGHT, 0.1f, 100.0f);
+	glm::mat4 projection = glm::perspective(glm::radians(45.0f), (GLfloat)SCREEN_WIDTH / (GLfloat)SCREEN_HEIGHT, 0.1f, 100.0f);
 
 	// Game loop
 	while (!glfwWindowShouldClose(window))
@@ -184,12 +136,38 @@ int main()
 			animatorMuneco.UpdateAnimation(deltaTime);
 		}
 
+		// ==========================================
+		// 3. ACTUALIZACIÓN LÓGICA DE LA CÁMARA
+		// ==========================================
+		if (camera.isInModeTransition()) {
+			camera.updateModeTransition(deltaTime);
+		}
+		else {
+			switch (camera.getCameraMode()) {
+			case CameraMode::THIRD_PERSON:
+				// ¡CORREGIDO! Aquí se aumenta 1.0f extra a la altura de la cámara.
+				// modelPosY base + 0.5f (por la altura de dibujo del modelo) + 1.0f (extra solicitado) = 1.5f
+				camera.updateThirdPersonCamera(glm::vec3(modelPosX, modelPosY + 1.5f, modelPosZ), rotModel, deltaTime);
+				break;
+			case CameraMode::AERIAL:
+				camera.keyControl(inputManager, deltaTime);
+				break;
+			case CameraMode::INTEREST_POINT:
+				camera.updateInterestPointCamera(deltaTime);
+				break;
+			}
+		}
+
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 
 		lightingShader.Use();
-		glUniform3f(glGetUniformLocation(lightingShader.Program, "viewPos"), camera.GetPosition().x, camera.GetPosition().y, camera.GetPosition().z);
+
+		// ==========================================
+		// 4. PASAR DATOS DE LA CÁMARA A LOS SHADERS
+		// ==========================================
+		glUniform3f(glGetUniformLocation(lightingShader.Program, "viewPos"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 
 		// Directional light
 		glUniform3f(glGetUniformLocation(lightingShader.Program, "dirLight.direction"), -0.2f, -1.0f, -0.3f);
@@ -207,8 +185,8 @@ int main()
 		glUniform1f(glGetUniformLocation(lightingShader.Program, "pointLights[0].quadratic"), 0.032f);
 
 		// Spotlight
-		glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.position"), camera.GetPosition().x, camera.GetPosition().y, camera.GetPosition().z);
-		glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.direction"), camera.GetFront().x, camera.GetFront().y, camera.GetFront().z);
+		glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.position"), camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
+		glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.direction"), camera.getDirection().x, camera.getDirection().y, camera.getDirection().z);
 		glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.ambient"), 0.7f, 0.7f, 0.7f);
 		glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.diffuse"), 1.0f, 1.0f, 1.0f);
 		glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.specular"), 1.0f, 1.0f, 1.0f);
@@ -221,7 +199,7 @@ int main()
 		glUniform1f(glGetUniformLocation(lightingShader.Program, "material.shininess"), 5.0f);
 
 		// Camera matrices
-		glm::mat4 view = camera.GetViewMatrix();
+		glm::mat4 view = camera.calculateViewMatrix();
 		GLint modelLoc = glGetUniformLocation(lightingShader.Program, "model");
 		GLint viewLoc = glGetUniformLocation(lightingShader.Program, "view");
 		GLint projLoc = glGetUniformLocation(lightingShader.Program, "projection");
@@ -231,48 +209,23 @@ int main()
 
 
 		// =====================================================
-		// DIBUJAR MODELO 1: PASILLO FI (Escenario Estático)
+		// DIBUJAR MODELO 1: PASILLO FI
 		// =====================================================
 		glm::mat4 modelPasillo = glm::mat4(1.0f);
 		modelPasillo = glm::translate(modelPasillo, glm::vec3(0.0f, 0.0f, 0.0f));
-		//modelPasillo = glm::scale(modelPasillo, glm::vec3(0.005f, 0.005f, 0.005f));
 		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelPasillo));
-
 		PasilloFI.Draw(lightingShader);
 
 
 		// =====================================================
-		// DIBUJAR MODELO: VIDRIOS (Escenario Transparente)
-		// =====================================================
-		// NOTA: Asegúrate de que este bloque esté AL FINAL de todos tus otros .Draw()
-
-		// 1. Activar la mezcla de colores (Blending)
-		glEnable(GL_BLEND);
-		// 2. Decirle a OpenGL CÓMO mezclar los colores (Fondo + Transparencia del vidrio)
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		// 3. Desactivar la escritura de profundidad (para no tapar cosas detrás de otros vidrios)
-		glDepthMask(GL_FALSE);
-
-		glm::mat4 modelVidrios = glm::mat4(1.0f);
-		modelVidrios = glm::translate(modelVidrios, glm::vec3(0.0f, 0.0f, 0.0f));
-		//modelVidrios = glm::scale(modelVidrios, glm::vec3(0.005f, 0.005f, 0.005f));
-		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelVidrios));
-
-		// Dibujar el modelo
-		Vidrios.Draw(lightingShader);
-
-		// 4. Restaurar la configuración normal para el siguiente frame
-		glDepthMask(GL_TRUE);
-		glDisable(GL_BLEND);
-
-
-		// =====================================================
-		// DIBUJAR MODELO 2: MUÑECO DE MADERA (Personaje Animado)
+		// DIBUJAR MODELO 2: MUÑECO DE MADERA
 		// =====================================================
 		glm::mat4 modelMuneco = glm::mat4(1.0f);
-		modelMuneco = glm::translate(modelMuneco, glm::vec3(modelPosX, modelPosY, modelPosZ));
-		modelMuneco = glm::rotate(modelMuneco, glm::radians(rotModel), glm::vec3(0.0f, 1.0f, 0.0f)); 
-		modelMuneco = glm::scale(modelMuneco, glm::vec3(0.001f, 0.001f, 0.001f));
+		modelMuneco = glm::translate(modelMuneco, glm::vec3(modelPosX, 0.5f, modelPosZ));
+		modelMuneco = glm::rotate(modelMuneco, glm::radians(rotModel), glm::vec3(0.0f, 1.0f, 0.0f));
+		modelMuneco = glm::rotate(modelMuneco, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+		modelMuneco = glm::scale(modelMuneco, glm::vec3(0.0015f, 0.0015f, 0.0015f));
 		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMuneco));
 
 		std::vector<glm::mat4> transformsMuneco = animatorMuneco.GetFinalBoneMatrices();
@@ -281,8 +234,22 @@ int main()
 			GLuint transformLoc = glGetUniformLocation(lightingShader.Program, uniformName.c_str());
 			glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transformsMuneco[i]));
 		}
-
 		MunecoMadera.Draw(lightingShader);
+
+		// =====================================================
+		// DIBUJAR MODELO: VIDRIOS (Transparente)
+		// =====================================================
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glDepthMask(GL_FALSE);
+
+		glm::mat4 modelVidrios = glm::mat4(1.0f);
+		modelVidrios = glm::translate(modelVidrios, glm::vec3(0.0f, 0.0f, 0.0f));
+		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelVidrios));
+		Vidrios.Draw(lightingShader);
+
+		glDepthMask(GL_TRUE);
+		glDisable(GL_BLEND);
 
 
 		// =====================================================
@@ -301,10 +268,6 @@ int main()
 		modelLamp = glm::scale(modelLamp, glm::vec3(0.2f));
 		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelLamp));
 
-		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		glBindVertexArray(0);
-
 		glfwSwapBuffers(window);
 	}
 
@@ -314,29 +277,41 @@ int main()
 
 void DoMovement()
 {
-	// Model Controls (Solo Rotación Global y Posición)
-	if (keys[GLFW_KEY_1]) rotModel += 1.0f;
-	if (keys[GLFW_KEY_2]) rotModel -= 1.0f;
-	if (keys[GLFW_KEY_A]) modelPosZ += 0.01f;
-	if (keys[GLFW_KEY_D]) modelPosZ -= 0.01f;
-	if (keys[GLFW_KEY_W]) modelPosX -= 0.01f;
-	if (keys[GLFW_KEY_S]) modelPosX += 0.01f;
-	if (keys[GLFW_KEY_Q]) modelPosY -= 0.01f;
-	if (keys[GLFW_KEY_E]) modelPosY += 0.01f;
+	// =====================================
+	// Model Controls (Movimiento Relativo)
+	// =====================================
+	float speed = 0.01f;   // Velocidad de caminata
+	float rotSpeed = 2.0f; // Velocidad de giro
 
-	// Camera controls
-	if (keys[GLFW_KEY_UP]) camera.ProcessKeyboard(FORWARD, deltaTime);
-	if (keys[GLFW_KEY_DOWN]) camera.ProcessKeyboard(BACKWARD, deltaTime);
-	if (keys[GLFW_KEY_LEFT]) camera.ProcessKeyboard(LEFT, deltaTime);
-	if (keys[GLFW_KEY_RIGHT]) camera.ProcessKeyboard(RIGHT, deltaTime);
+	if (keys[GLFW_KEY_A]) rotModel += rotSpeed;
+	if (keys[GLFW_KEY_D]) rotModel -= rotSpeed;
 
-	// Light controls
-	if (keys[GLFW_KEY_T]) pointLightPositions[0].x += 0.01f;
-	if (keys[GLFW_KEY_G]) pointLightPositions[0].x -= 0.01f; 
-	if (keys[GLFW_KEY_Y]) pointLightPositions[0].y += 0.01f; 
-	if (keys[GLFW_KEY_H]) pointLightPositions[0].y -= 0.01f; 
-	if (keys[GLFW_KEY_U]) pointLightPositions[0].z -= 0.1f;
-	if (keys[GLFW_KEY_J]) pointLightPositions[0].z += 0.01f; 
+	float rad = glm::radians(rotModel);
+	if (keys[GLFW_KEY_W]) {
+		modelPosX -= cos(rad) * speed;
+		modelPosZ += sin(rad) * speed;
+	}
+	if (keys[GLFW_KEY_S]) {
+		modelPosX += cos(rad) * speed;
+		modelPosZ -= sin(rad) * speed;
+	}
+
+	// ==========================================
+	// CONTROLES DE CAMBIO DE MODO DE CÁMARA
+	// ==========================================
+	// Tecla 7: Tercera Persona
+	if (keys[GLFW_KEY_7]) {
+		camera.setCameraMode(CameraMode::THIRD_PERSON);
+	}
+	// Tecla 8: Modo Aéreo
+	if (keys[GLFW_KEY_8]) {
+		camera.setTransitionTarget(glm::vec3(0.1f, 20.0f, 0.1f), glm::vec3(0.0f, 0.0f, 0.0f));
+		camera.setCameraMode(CameraMode::AERIAL);
+	}
+	// Tecla 9: Puntos de Interés
+	if (keys[GLFW_KEY_9]) {
+		camera.setCameraMode(CameraMode::INTEREST_POINT);
+	}
 }
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode)
@@ -345,6 +320,11 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 	{
 		playFBX = !playFBX;
 		printf("Animaciones FBX: %s\n", playFBX ? "REPRODUCIENDO" : "PAUSADAS");
+	}
+
+	if (key == GLFW_KEY_N && action == GLFW_PRESS)
+	{
+		camera.nextInterestPoint();
 	}
 
 	if (GLFW_KEY_ESCAPE == key && GLFW_PRESS == action)
@@ -356,6 +336,8 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 	{
 		if (action == GLFW_PRESS) keys[key] = true;
 		else if (action == GLFW_RELEASE) keys[key] = false;
+
+		inputManager.setKey(key, keys[key]);
 	}
 }
 
@@ -374,5 +356,5 @@ void MouseCallback(GLFWwindow* window, double xPos, double yPos)
 	lastX = xPos;
 	lastY = yPos;
 
-	camera.ProcessMouseMovement(xOffset, yOffset);
+	camera.mouseControl(xOffset * 0.1f, yOffset * 0.1f);
 }

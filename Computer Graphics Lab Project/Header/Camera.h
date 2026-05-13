@@ -1,163 +1,116 @@
 #pragma once
-
-// Std. Includes
-#include <vector>
-
-// GL Includes
-#define GLEW_STATIC
 #include <GL/glew.h>
-
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <vector>
+#include "InputManager.h"
 
-// Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
-enum Camera_Movement
+enum class CameraMode
 {
-	FORWARD,
-	BACKWARD,
-	LEFT,
-	RIGHT
+	THIRD_PERSON,
+	AERIAL,
+	INTEREST_POINT
 };
 
-// Default camera values
-const GLfloat YAW = -90.0f;
-const GLfloat PITCH = 0.0f;
-const GLfloat SPEED = 6.0f;
-const GLfloat SENSITIVTY = 0.25f;
-const GLfloat ZOOM = 45.0f;
-
-// An abstract camera class that processes input and calculates the corresponding Eular Angles, Vectors and Matrices for use in OpenGL
 class Camera
 {
 public:
-	// Constructor with vectors
-	Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), GLfloat yaw = YAW, GLfloat pitch = PITCH) : front(glm::vec3(0.0f, 0.0f, -1.0f)), movementSpeed(SPEED), mouseSensitivity(SENSITIVTY), zoom(ZOOM)
-	{
-		this->position = position;
-		this->worldUp = up;
-		this->yaw = yaw;
-		this->pitch = pitch;
-		this->updateCameraVectors();
-	}
+	Camera();
+	Camera(glm::vec3 startPosition, glm::vec3 startUp, GLfloat startYaw, GLfloat startPitch, GLfloat startMoveSpeed, GLfloat turnSpeed);
 
-	// Constructor with scalar values
-	Camera(GLfloat posX, GLfloat posY, GLfloat posZ, GLfloat upX, GLfloat upY, GLfloat upZ, GLfloat yaw, GLfloat pitch) : front(glm::vec3(0.0f, 0.0f, -1.0f)), movementSpeed(SPEED), mouseSensitivity(SENSITIVTY), zoom(ZOOM)
-	{
-		this->position = glm::vec3(posX, posY, posZ);
-		this->worldUp = glm::vec3(upX, upY, upZ);
-		this->yaw = yaw;
-		this->pitch = pitch;
-		this->updateCameraVectors();
-	}
+	void keyControl(const InputManager& input, GLfloat deltaTime);
+	void mouseControl(GLfloat xDelta, GLfloat yDelta);
 
-	// Returns the view matrix calculated using Eular Angles and the LookAt Matrix
-	glm::mat4 GetViewMatrix()
-	{
-		return glm::lookAt(this->position, this->position + this->front, this->up);
-	}
+	glm::mat4 calculateViewMatrix() const;
 
-	// Processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
-	void ProcessKeyboard(Camera_Movement direction, GLfloat deltaTime)
-	{
-		GLfloat velocity = this->movementSpeed * deltaTime;
+	glm::vec3 getPosition() const { return position; }
+	glm::vec3 getDirection() const { return glm::normalize(front); }
 
-		if (direction == FORWARD)
-		{
-			this->position += this->front * velocity;
-		}
+	// Modos de cámara
+	void setCameraMode(CameraMode mode);
+	CameraMode getCameraMode() const { return currentMode; }
 
-		if (direction == BACKWARD)
-		{
-			this->position -= this->front * velocity;
-		}
+	// Control de cámara de 3era persona (¡Añadido modelRotation!)
+	void updateThirdPersonCamera(const glm::vec3& targetPosition, GLfloat modelRotation, GLfloat deltaTime);
 
-		if (direction == LEFT)
-		{
-			this->position -= this->right * velocity;
-		}
+	// Control de órbita
+	void setAutoOrbit(bool enabled) { autoOrbit = enabled; }
+	bool isAutoOrbitEnabled() const { return autoOrbit; }
+	void rotateOrbit(GLfloat deltaAngle) { orbitAngle += deltaAngle; }
+	void setOrbitSpeed(GLfloat speed) { orbitSpeed = speed; }
+	GLfloat getOrbitAngle() const { return orbitAngle; }
 
-		if (direction == RIGHT)
-		{
-			this->position += this->right * velocity;
-		}
-	}
+	// Control de cámara aérea
+	void updateAerialCamera(const InputManager& input, GLfloat deltaTime);
 
-	// Processes input received from a mouse input system. Expects the offset value in both the x and y direction.
-	void ProcessMouseMovement(GLfloat xOffset, GLfloat yOffset, GLboolean constrainPitch = true)
-	{
-		xOffset *= this->mouseSensitivity;
-		yOffset *= this->mouseSensitivity;
+	// Control de puntos de interés
+	void addInterestPoint(const glm::vec3& point, const glm::vec3& lookAt);
+	void nextInterestPoint();
+	void updateInterestPointCamera(GLfloat deltaTime);
 
-		this->yaw += xOffset;
-		this->pitch += yOffset;
+	// Transición genérica entre modos
+	void setTransitionTarget(const glm::vec3& targetPos, const glm::vec3& targetLookAt);
+	bool isInModeTransition() const { return inModeTransition; }
 
-		// Make sure that when pitch is out of bounds, screen doesn't get flipped
-		if (constrainPitch)
-		{
-			if (this->pitch > 89.0f)
-			{
-				this->pitch = 89.0f;
-			}
+	// ¡AQUÍ ESTÁ LA CORRECCIÓN! (Movido de private a public)
+	bool updateModeTransition(GLfloat deltaTime);
 
-			if (this->pitch < -89.0f)
-			{
-				this->pitch = -89.0f;
-			}
-		}
-
-		// Update Front, Right and Up Vectors using the updated Eular angles
-		this->updateCameraVectors();
-	}
-
-	// Processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
-	void ProcessMouseScroll(GLfloat yOffset)
-	{
-
-	}
-
-	GLfloat GetZoom()
-	{
-		return this->zoom;
-	}
-
-	glm::vec3 GetPosition()
-	{
-		return this->position;
-	}
-
-	glm::vec3 GetFront()
-	{
-		return this->front;
-	}
+	~Camera();
 
 private:
-	// Camera Attributes
 	glm::vec3 position;
 	glm::vec3 front;
 	glm::vec3 up;
 	glm::vec3 right;
 	glm::vec3 worldUp;
 
-	// Eular Angles
 	GLfloat yaw;
 	GLfloat pitch;
+	GLfloat moveSpeed;
+	GLfloat turnSpeed;
 
-	// Camera options
-	GLfloat movementSpeed;
-	GLfloat mouseSensitivity;
-	GLfloat zoom;
+	// Para seguimiento suave
+	glm::vec3 targetPosition;
+	GLfloat smoothSpeed = 5.0f;
+	GLfloat thirdPersonDistance = 2.5f;
+	GLfloat thirdPersonHeight = 1.0f;
+	GLfloat orbitAngle = 0.0f;
+	GLfloat orbitSpeed = 45.0f;
+	bool autoOrbit = false;
+	GLfloat manualOrbitSensitivity = 100.0f;
 
-	// Calculates the front vector from the Camera's (updated) Eular Angles
-	void updateCameraVectors()
+	// Para cámara aérea
+	GLfloat aerialHeight = 15.0f;
+	GLfloat aerialMoveSpeed = 15.0f;
+	glm::vec3 aerialPosition;
+
+	// Para puntos de interés
+	struct InterestPoint
 	{
-		// Calculate the new Front vector
-		glm::vec3 front;
-		front.x = cos(glm::radians(this->yaw)) * cos(glm::radians(this->pitch));
-		front.y = sin(glm::radians(this->pitch));
-		front.z = sin(glm::radians(this->yaw)) * cos(glm::radians(this->pitch));
-		this->front = glm::normalize(front);
-		// Also re-calculate the Right and Up vector
-		this->right = glm::normalize(glm::cross(this->front, this->worldUp));  // Normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
-		this->up = glm::normalize(glm::cross(this->right, this->front));
-	}
+		glm::vec3 cameraPosition;
+		glm::vec3 lookAtPoint;
+	};
+	std::vector<InterestPoint> interestPoints;
+	int currentInterestPoint = 0;
+	GLfloat interestPointTransitionTime = 0.0f;
+	GLfloat interestPointTransitionDuration = 2.0f;
+	glm::vec3 interestPointStartPos;
+	glm::vec3 interestPointStartLookAt;
+
+	CameraMode currentMode = CameraMode::THIRD_PERSON;
+	CameraMode pendingMode = CameraMode::THIRD_PERSON;
+
+	// Transición genérica entre modos
+	bool inModeTransition = false;
+	GLfloat modeTransitionTime = 0.0f;
+	GLfloat modeTransitionDuration = 2.0f;
+	glm::vec3 transitionStartPos;
+	glm::vec3 transitionStartLookAt;
+	glm::vec3 transitionTargetPos;
+	glm::vec3 transitionTargetLookAt;
+
+	void update();
+	void lookAt(const glm::vec3& target);
+	// (Ya no está updateModeTransition aquí abajo)
 };
