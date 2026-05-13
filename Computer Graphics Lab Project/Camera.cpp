@@ -141,7 +141,9 @@ void Camera::keyControl(const InputManager& input, GLfloat deltaTime)
 
 void Camera::mouseControl(GLfloat xDelta, GLfloat yDelta)
 {
+	// Bloqueamos el ratón para Puntos de Interés y Modo Aéreo
 	if (currentMode == CameraMode::INTEREST_POINT) return;
+	if (currentMode == CameraMode::AERIAL) return; // ¡NUEVO BLOQUEO!
 
 	yaw += xDelta;
 	pitch -= yDelta;
@@ -189,15 +191,21 @@ void Camera::updateAerialCamera(const InputManager& input, GLfloat deltaTime)
 	if (currentMode != CameraMode::AERIAL) return;
 
 	GLfloat velocity = aerialMoveSpeed * deltaTime;
+	GLfloat turnVelocity = 80.0f * deltaTime; // Puedes subir/bajar este 80.0f para ajustar qué tan rápido gira
 
-	if (input.isKeyDown(GLFW_KEY_W)) aerialPosition.z -= velocity;
-	if (input.isKeyDown(GLFW_KEY_S)) aerialPosition.z += velocity;
-	if (input.isKeyDown(GLFW_KEY_A)) aerialPosition.x -= velocity;
-	if (input.isKeyDown(GLFW_KEY_D)) aerialPosition.x += velocity;
+	// W y S para avanzar y retroceder hacia donde miras
+	if (input.isKeyDown(GLFW_KEY_W)) aerialPosition += front * velocity;
+	if (input.isKeyDown(GLFW_KEY_S)) aerialPosition -= front * velocity;
+
+	// A y D ahora GIRAN la vista hacia la izquierda o derecha
+	if (input.isKeyDown(GLFW_KEY_A)) yaw -= turnVelocity;
+	if (input.isKeyDown(GLFW_KEY_D)) yaw += turnVelocity;
+
+	// Q y E para subir y bajar la altura
 	if (input.isKeyDown(GLFW_KEY_Q)) aerialPosition.y += velocity;
 	if (input.isKeyDown(GLFW_KEY_E)) aerialPosition.y -= velocity;
 
-	aerialPosition.y = glm::clamp(aerialPosition.y, 5.0f, 50.0f);
+	aerialPosition.y = glm::clamp(aerialPosition.y, 2.0f, 50.0f);
 
 	const float MAP_LIMIT = 70.0f;
 	aerialPosition.x = glm::clamp(aerialPosition.x, -MAP_LIMIT, MAP_LIMIT);
@@ -205,9 +213,6 @@ void Camera::updateAerialCamera(const InputManager& input, GLfloat deltaTime)
 
 	position = aerialPosition;
 
-	glm::vec3 dirToCenter = glm::normalize(glm::vec3(0.0f) - aerialPosition);
-	lookAt(aerialPosition + dirToCenter * 30.0f);
-	pitch = -45.0f;
 	update();
 }
 

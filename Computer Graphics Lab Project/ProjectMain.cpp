@@ -114,10 +114,11 @@ int main()
 	camera.setCameraMode(CameraMode::THIRD_PERSON);
 
 	// Puntos de interés del pasillo
-	camera.addInterestPoint(glm::vec3(0.0f, 2.0f, 5.0f), glm::vec3(0.0f, 1.5f, -2.0f));
-	camera.addInterestPoint(glm::vec3(1.5f, 1.2f, 2.0f), glm::vec3(1.0f, 0.5f, 0.0f));
-	camera.addInterestPoint(glm::vec3(-1.0f, 1.5f, -1.0f), glm::vec3(-3.0f, 1.0f, -2.0f));
-	camera.addInterestPoint(glm::vec3(0.0f, 1.8f, -6.0f), glm::vec3(0.0f, 1.5f, 0.0f));
+	// Punto de interés basado en la captura (Vista desde las ventanas amarillas hacia las mesas)
+	camera.addInterestPoint(glm::vec3(3.0f, 5.0f, 0.0f), glm::vec3(-1.0f, 1.5f, 0.0f));
+	camera.addInterestPoint(glm::vec3(2.0f, 5.0f, -15.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+	camera.addInterestPoint(glm::vec3(2.0f, 5.0f, 15.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+	camera.addInterestPoint(glm::vec3(0.0f, 1.8f, -6.0f), glm::vec3(0.0f, 1.5f, 0.0f)); 
 
 	glm::mat4 projection = glm::perspective(glm::radians(45.0f), (GLfloat)SCREEN_WIDTH / (GLfloat)SCREEN_HEIGHT, 0.1f, 100.0f);
 
@@ -280,20 +281,23 @@ void DoMovement()
 	// =====================================
 	// Model Controls (Movimiento Relativo)
 	// =====================================
-	float speed = 0.01f;   // Velocidad de caminata
-	float rotSpeed = 2.0f; // Velocidad de giro
+	if (camera.getCameraMode() == CameraMode::THIRD_PERSON)
+	{
+		float speed = 0.01f;   // Velocidad de caminata
+		float rotSpeed = 2.0f; // Velocidad de giro
 
-	if (keys[GLFW_KEY_A]) rotModel += rotSpeed;
-	if (keys[GLFW_KEY_D]) rotModel -= rotSpeed;
+		if (keys[GLFW_KEY_A]) rotModel += rotSpeed;
+		if (keys[GLFW_KEY_D]) rotModel -= rotSpeed;
 
-	float rad = glm::radians(rotModel);
-	if (keys[GLFW_KEY_W]) {
-		modelPosX -= cos(rad) * speed;
-		modelPosZ += sin(rad) * speed;
-	}
-	if (keys[GLFW_KEY_S]) {
-		modelPosX += cos(rad) * speed;
-		modelPosZ -= sin(rad) * speed;
+		float rad = glm::radians(rotModel);
+		if (keys[GLFW_KEY_W]) {
+			modelPosX -= cos(rad) * speed;
+			modelPosZ += sin(rad) * speed;
+		}
+		if (keys[GLFW_KEY_S]) {
+			modelPosX += cos(rad) * speed;
+			modelPosZ -= sin(rad) * speed;
+		}
 	}
 
 	// ==========================================
@@ -305,7 +309,9 @@ void DoMovement()
 	}
 	// Tecla 8: Modo Aéreo
 	if (keys[GLFW_KEY_8]) {
-		camera.setTransitionTarget(glm::vec3(0.1f, 20.0f, 0.1f), glm::vec3(0.0f, 0.0f, 0.0f));
+		glm::vec3 targetPos = glm::vec3(modelPosX, 10.0f, modelPosZ);
+		glm::vec3 targetLook = targetPos + glm::vec3(0.0f, 0.0f, -10.0f);
+		camera.setTransitionTarget(targetPos, targetLook);
 		camera.setCameraMode(CameraMode::AERIAL);
 	}
 	// Tecla 9: Puntos de Interés
