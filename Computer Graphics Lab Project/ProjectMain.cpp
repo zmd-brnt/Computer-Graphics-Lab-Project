@@ -95,6 +95,7 @@ int main()
 
 	Shader lightingShader("Shader/lighting.vs", "Shader/lighting.frag");
 	Shader lampShader("Shader/lamp.vs", "Shader/lamp.frag");
+	Shader skyboxShader("Shader/SkyBox.vs", "Shader/SkyBox.frag");
 
 	stbi_set_flip_vertically_on_load(true);
 
@@ -132,7 +133,10 @@ int main()
 		glfwPollEvents();
 		DoMovement();
 
-		if (playFBX)
+		bool isMoving = keys[GLFW_KEY_W] || keys[GLFW_KEY_S] || keys[GLFW_KEY_A] || keys[GLFW_KEY_D];
+
+		// 2. Actualizar la animación  si playFBX es true y el personaje se está moviendo
+		if (playFBX && isMoving)
 		{
 			animatorMuneco.UpdateAnimation(deltaTime);
 		}
@@ -207,8 +211,6 @@ int main()
 
 		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-
-
 		// =====================================================
 		// DIBUJAR MODELO 1: PASILLO FI
 		// =====================================================
@@ -251,7 +253,6 @@ int main()
 
 		glDepthMask(GL_TRUE);
 		glDisable(GL_BLEND);
-
 
 		// =====================================================
 		// DIBUJAR CUBO DE LUZ (Lámpara)
