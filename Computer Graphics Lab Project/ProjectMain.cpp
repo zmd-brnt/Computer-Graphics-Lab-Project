@@ -70,7 +70,7 @@ int main()
 {
 	// Init GLFW
 	glfwInit();
-	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Animacion Maquina de Estados - Multi Modelos", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Project Pasillo Sotano -- Andros & Brent", nullptr, nullptr);
 
 	if (nullptr == window)
 	{
